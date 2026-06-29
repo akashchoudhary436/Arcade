@@ -6,19 +6,24 @@ export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   console.log("[SCORES API] GET hit at", new Date().toISOString())
-  const gameId = req.nextUrl.searchParams.get("gameId") as GameId | null
-  const limit = Math.min(
-    50,
-    parseInt(req.nextUrl.searchParams.get("limit") || "10", 10)
-  )
+  try {
+    const gameId = req.nextUrl.searchParams.get("gameId") as GameId | null
+    const limit = Math.min(
+      50,
+      parseInt(req.nextUrl.searchParams.get("limit") || "10", 10)
+    )
 
-  const where = gameId ? { gameId } : {}
-  const scores = await db.gameScore.findMany({
-    where,
-    orderBy: { score: "desc" },
-    take: limit,
-  })
-  return NextResponse.json({ scores })
+    const where = gameId ? { gameId } : {}
+    const scores = await db.gameScore.findMany({
+      where,
+      orderBy: { score: "desc" },
+      take: limit,
+    })
+    return NextResponse.json({ scores })
+  } catch (e) {
+    console.error("[SCORES API] GET error:", e)
+    return NextResponse.json({ scores: [], error: "db_unavailable" })
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -45,9 +50,10 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ ok: true, id: created.id })
   } catch (e) {
+    console.error("[SCORES API] POST error:", e)
     return NextResponse.json(
-      { error: (e as Error).message },
-      { status: 500 }
+      { error: "db_unavailable" },
+      { status: 200 }
     )
   }
 }
