@@ -1,0 +1,206 @@
+# Project Specification: Browser-Based 3D Creative Sandbox
+
+## Executive Summary  
+This document outlines a **browser-first multiplayer 3D sandbox** where players can freely build and explore in shared worlds (no in-game economy or competitive modes).  Players can **join or create worlds**, chat, and construct anything using block- and mesh‑based pieces.  The design is inspired by platforms like Minecraft and Roblox – e.g. *“millions of user-generated games”* showcase demand for open creation tools – but focuses solely on creative building.  The stack is WebGL-based (using a JS engine like Babylon.js or Three.js) with a Node.js/Colyseus backend for authoritative state sync.  Key features include voxel/chunk world streaming, an intuitive build UI (desktop/mobile), real‑time collaboration, and scalable cloud hosting (CDN for assets, containerized servers).  Below we detail core features, gameplay flow, UI/UX, technical architecture, data models, and a phased roadmap with MVP scope, citing examples from similar games and official sources (e.g. Minecraft, Roblox, Colyseus, AWS, etc.) where relevant.
+
+## Core Features  
+- **Creative Building Only:** Unlimited inventory of construction materials (wood, stone, cement, etc.) with pieces like cubes, half‑blocks, stairs, slopes, arches, pillars, fences, window/door frames, etc., enabling realistic structures.  No resource gathering or economy – just sandbox creativity.  
+- **Multiplayer Collaboration:** Real‑time shared worlds.  Players can **browse or create worlds** (public rooms with codes or private friends-only worlds).  Rooms support dozens of concurrent players, each synchronized by an authoritative server.  In practice, this is like Roblox’s model where the client “establishes a game instance” on the server and all interactions are synced.  
+- **Movement and Interaction:** First/third‑person camera with WASD/arrow or touch controls, plus flying mode.  Players can walk/fly through structures, toggle gravity, and collide with blocks.  Movement and look controls are smooth (WebGL performance supports frame rates ~60fps on modern hardware).  
+- **Chat & Social:** In-game text chat (and optional voice) with profanity filtering.  Players can chat globally in the room.  No competitive leaderboards or PvP.  (Social features like follows or bookmarks are planned later, outside MVP.)  
+- **Permissions & Moderation:** World creators (or admins) have control – e.g. only creators can destroy blocks they didn’t place.  Moderation tools include kick/ban, chat filters, and automatic monitoring.  (Roblox, for example, uses encrypted comms and behavioral analytics to prevent cheating.)  
+- **Persistence:** Worlds auto-save to cloud storage.  Builders can load previously-saved worlds or templates.  All block placements are stored so worlds persist across sessions.  
+
+## Gameplay Flow and Player Actions  
+- **Login/Join/Create:** Player logs in (or plays as guest).  They see a lobby of public worlds (New/Trending/Liked/etc.) or enter a **room code** to join a friend’s world.  To create a world, the player clicks “New World” and chooses public/private and a name.  The client then connects via WebSocket to the game server, which creates/joins a Colyseus (or similar) room.  Data sync is then continuous.  
+- **Spawn & Controls:** On joining a world, the player “spawns” at a default location (or last location).  They can look around (mouse/touch drag), move (WASD or on-screen joystick), jump/fly, and open their build menu.  On mobile, dual-stick or swipe controls are used.  
+- **Building Tools:** The main loop is build-mode vs walk-mode.  In build-mode, the player selects block types/materials from a toolbar/inventory and places or deletes blocks in the world grid.  Blocks snap to a grid or align to existing surfaces.  The player can rotate blocks (typically 90° increments) and use tools like “fill”, “line”, or copy/paste groups.  An Undo/Redo stack tracks recent actions.  When placing a block, the client sends a “place block” message to the server, which authoritatively confirms and broadcasts the new block to all clients.  
+- **Movement & Exploration:** Outside build-mode, players can freely explore the world.  Movement is physics‑based (gravity, collisions).  For example, the game will use a physics engine (see *Physics & Collision* below) to prevent walking through walls or falling through floors.  
+- **Chat:** Players can open a chat console to type messages.  Chat is relayed via the server to all players in the room.  Special commands (e.g. “/tp” to teleport or “/kick” for admins) can be supported.  Messages and build actions are time-stamped so that in case of desync, the server can reconcile the true state.  
+- **World Lifecycle:** The player can invite others, or after building they leave the world.  The world state remains on server or DB; the player can rejoin later or share a link.  A permanent save of the world is stored (e.g. in a database or on S3) when every change occurs or periodically.  
+
+## UI/UX Flows (Desktop and Mobile)  
+- **Main Menu:** Home screen shows **World Browser** (with tabs: Featured, Trending, New, etc.), and **Create World** button.  Each world entry shows a thumbnail, name, creator, and like count.  Also a “Friends” tab and “Your Worlds”.  
+- **In-Game UI (Desktop):** A top bar or side panel shows selected block/material and a build toolbar (block palette).  A minimap or inset viewer can show the world overview.  Hotkeys (1-9, letters) switch block types; right-click rotates a block; mouse scroll changes block size.  A chat window (slidable) displays messages.  The toolbar auto-hides if inactive to not block view.  Desktop controls: WASD to move, mouse to look, space to jump, control to crouch.  Build toggle key (e.g. V).  
+- **In-Game UI (Mobile):** Mobile uses an on-screen joystick (bottom-left) and look control (drag on screen).  A floating build button (bottom-right) opens the block inventory UI, where blocks are shown as icons (swipeable list).  Touch drag on the world surface to position a “ghost block” preview before placement.  Virtual buttons (“Place”, “Remove”, “Rotate”) appear contextually.  Chat opens via a speech-bubble icon.  Overall, the UI is simplified for touch but retains feature parity.  
+- **Toolbars & Overlays:** Both versions have an on-screen toolbar for quick selection (cube, wall, roof, window, etc.).  Icons show block type and material.  Color/material pickers allow customization of wood/stone color.  A “Settings” menu lets players adjust graphics quality (LOD distance, textures) and camera sensitivity.  
+- **UX Flow Example:** On desktop, a user presses “Create World” → chooses settings → world loads → player sees first-person camera and build menu.  They select “Cube” (hotkey 1) and place blocks to form a floor.  They switch to “Stairs” and build a ramp.  Another player joins, and a chat bubble appears as they greet.  This flow is mirrored on mobile but with touch equivalents.  
+
+## Building Pieces, Materials, and Tools  
+- **Pieces/Geometry:** The game offers a rich set of primitive pieces to allow realistic architecture: full **Cube blocks**, **Half-blocks/slabs**, **Stairs**, **Slopes (roofs)**, **Arch segments**, **Pillars/Columns**, **Fences and Gates**, **Window/door frames**, etc.  These correspond to Minecraft-like elements but also custom pieces (e.g. fancy roof panels).  Pieces snap to a 3D grid (e.g. 0.5m or 1m increments).  Additional pieces (e.g. pre-made furniture, decorative shapes) can be added later as content packs.  
+- **Materials/Texturing:** Each piece can have different materials (wood, stone, metal, glass, etc.).  Materials are cosmetic only (no durability).  Technically, we allow the player to choose a texture or material color for each block (similar to “painting”).  Under the hood, materials use PBR (physically-based rendering) for realism (Babylon and Three support PBR by default).  The game supports custom textures (upload or select texture packs) stored on the server or CDN.  All textures are compressed (e.g. KTX2 or JPEG) and streamed via CDN for performance.  
+- **Placement Rules & Snapping:** Blocks must align to existing geometry or the world grid.  For example, a staircase will automatically snap to cover a 1×1 block footprint and align its base to the ground.  If a block is floating and unsupported, it “falls” until it hits something (unless in flying mode).  However, players can also build in mid-air by anchoring pieces to each other.  When placing, a semi-transparent preview of the block appears; clicking/tapping confirms placement.  Collision rules prevent overlapping placements.  
+- **Rotation/Scaling:** Most blocks rotate in 90° increments around the vertical axis.  For axes-aligned blocks (cubes, fences), rotation is discrete.  Some pieces (slopes, custom models) may allow finer rotation or mirroring.  Uniform scaling is possible via a “resizer” tool (e.g. doubling a block’s size), but snapping remains to integer grid multiples.  Non-uniform scaling (stretching) is disallowed to keep block grid consistency.  
+- **Grouping & Copying:** Players can select a group of blocks (via dragging a selection box or a “lasso” tool) to copy/paste or mirror them.  This allows repeating patterns (e.g. columns, walls) quickly.  Group moves will check collisions with the environment.  Undo/Redo is supported up to a history of 50 actions per player.  
+- **Building Tools:** Aside from direct place/remove, advanced tools include “Fill” (fill a rectangular prism with a block), “Line” (draw a straight wall/beam), “Cylinder” (auto-build circular towers), and “Terrain” (raise/lower landscape if applicable).  These tools operate client-side but send a serialized list of block updates to the server for consistency.  
+
+## Multiplayer Architecture  
+- **Authoritative Server Model:** We use an authoritative game server (Node.js/Colyseus or similar).  Each world is a *room* on the server, containing the canonical state (blocks, players, etc.).  Clients send input (e.g. “player placed block X at (x,y,z)”) and the server updates the world state, then broadcasts state diffs to all clients.  This prevents cheating and ensures consistency (unlike a peer-to-peer model).  For example, Colyseus is explicitly built for this: *“open-source Node.js framework for building authoritative game servers — with real-time state synchronization”*.  
+- **Server Types & Scaling:** A typical setup is multiple game server instances behind a load balancer.  Each instance can host many rooms.  New rooms are created on-demand via a *matchmaker service* (Colyseus built-in or custom).  For example, Roblox uses container orchestration: *“Roblox leverages containers to scale dynamically with player traffic… over 170,000 containers on 18,000 servers”*.  While we may start small, the design is cloud‑native (Docker/Kubernetes on AWS, GCP, or Colyseus Cloud) to allow horizontal scaling.  
+- **State Synchronization:** The server maintains the game state in memory (or in a fast DB like Redis) and uses delta-synchronization.  Colyseus uses schema-based state (e.g. a `MapSchema<Player>` for player positions).  We’ll follow this: e.g. keep in-memory structures for *Players*, *Blocks*, *World metadata*.  To handle scale, we can shard worlds across processes.  A Redis or Kafka pub/sub can relay state if one game spans multiple servers, making servers “stateless” for horizontal scaling.  For example, one guide suggests using Redis pub/sub so that each WebSocket server only has clients, with game state in Redis allowing millions of users.  
+- **Persistence & Save/Load:** When a room ends or periodically, the world’s block data is saved to durable storage.  This could be a NoSQL DB (e.g. DynamoDB) or flat files on S3.  On load, the server reads the saved state and broadcasts it to clients.  To avoid giant single saves, worlds are naturally chunked (see Chunking below), so only modified chunks need updating in storage.  
+- **Room Codes & Privacy:** Each world instance can have a generated alphanumeric “room code” for private sharing.  Public worlds are listed in the browser UI and can be flagged as “Moderated” or “Safe.”  Rooms enforce permissions: the server checks each block action against the room’s owner list (to prevent unauthorized griefing).  Typical permission model: creator = admin (can add/remove players, delete world), moderators (if any), and regular members.  
+- **Moderation & Anti-Griefing:** All server actions are logged.  If unwanted edits occur, admins can revert by reloading a previous snapshot or by blockhistory tools (recording who placed each block).  Chat is filtered via word lists or even simple ML filters.  The server runs input validation: for instance, it checks that a “place block” message is within the allowed build area.  Clients cannot arbitrarily change world state (no local authority).  Custom rule example: if two players try to place at same spot, server arbitrates based on timestamp or denies later one.  
+- **Example Frameworks:** One strong example is the Lance.GG framework, which provides a Node.js game server with built-in interpolation, prediction, and lag handling for real-time games.  Lance focuses on smooth client experience (handling latency, using extrapolation).  We will take inspiration from such frameworks (or use Colyseus which has simpler synchronization).  In summary: server(s) authoritatively hold rooms, sync state via efficient binary messages, and optionally share state across instances via Redis/Kafka.  
+
+```mermaid
+flowchart LR
+  subgraph Client
+    C1[User Browser/Game Client]
+    Chat[Chat UI]
+    BuildUI[Build Toolbar]
+    Camera(Camera / Controls)
+  end
+  subgraph Network
+    WebSocket[WebSocket / TLS]
+  end
+  subgraph ServerCluster
+    LB[Load Balancer]
+    GS[Game Server (Node.js + Colyseus/Lance)]
+    Match[Matchmaker/Room Scheduler]
+    Auth[Auth Server / DB]
+    Redis[Redis PubSub]
+    Storage[S3 / Blob Storage]
+    DB[User/Profile DB]
+  end
+  Client -->|WebSocket| LB --> GS
+  GS --> Redis
+  GS --> Storage
+  GS --> DB
+  Client -- Chat/HTTP --> GS
+  GS -->|Matches| Match
+  GS <--> Auth
+  Redis <--> GS
+```
+
+**Diagram:** Simplified system architecture. Clients (browser/WebGL) connect via WebSocket to game servers through a load balancer. Game servers are Node.js instances (Colyseus, Lance, or custom). Shared state (Redis/DB) and persistent storage (S3/DB) support scaling.  
+
+## Networking and Performance Optimization  
+- **Transport Protocol:** The primary network transport is **WebSocket** (reliable TCP), since it’s simple and well-supported (Socket.io, ws, etc.).  WebSockets allow persistent bidirectional comms with cheap cloud hosting.  Alternatively, **WebRTC data channels** could be used for lower-latency UDP-like transfers (to avoid TCP head-of-line blocking).  However, WebRTC requires complex signaling (and STUN/TURN servers), so our MVP uses WebSockets.  We note that for real-time games, UDP is ideal (WebRTC provides an SCTP/UDP channel), but building on WebSocket first is pragmatic.  
+- **State Sync & Bandwidth:** Only changed data is sent each frame (delta updates).  For example, when a player places a block, the server broadcasts a small message (block ID, position, type) to all clients.  To reduce bandwidth, messages are binary-packed (e.g. Protocol Buffers or Colyseus schema) and only send updates, not full world.  Colyseus’s built-in state diffing handles this automatically.  Periodic “snapshot” bandwidth is minimized.  
+- **Level-of-Detail (LOD):** For large builds, we reduce geometry complexity at distance.  Techniques: use Babylon/Three LOD support to swap in low-poly models when far.  The above Babylon forum example noted that using GPU instancing is 10× faster than separate meshes, and LOD works fine.  We will employ instancing for repeated objects (e.g. many identical cubes or trees) and group distant geometry.  Distant chunks can be rendered as simplified “impostors” or culled entirely.  
+- **Chunking (Scene Streaming):** The world is divided into **chunks** (e.g. 16×16×16 blocks) for both rendering and networking.  Each chunk is one mesh/draw-call, drastically reducing overhead.  As one blog explains, using 16×16×16 chunks means a 256³ world has only 4096 draw calls vs 16 million individual blocks.  The client only renders nearby chunks (frustum culling) and progressively loads adjacent chunks as the player moves (streaming).  The server similarly only syncs data for relevant chunks.  Because block editing can cross chunk boundaries, we rebuild mesh for affected chunks only.  Chunks outside view or far from players can unload to save memory.  
+- **Instancing & Merging:** Wherever possible, multiple identical blocks (or trees, props, etc.) are rendered via GPU instancing or merged mesh.  For example, repeating a column 10 times in a row can use an instanced mesh of one column model.  The Babylon forum demonstrated that merged meshes and instancing greatly boost FPS.  
+- **Physics & Collision:** We use a physics engine for gravity and collision (see next section).  World geometry (static blocks) can be compiled into an optimized collision mesh (or an octree) so physics checks are fast.  We also rely on view frustum and occlusion culling: objects behind the camera or occluded by buildings are not rendered.  The chosen engine (Babylon/Three) has built-in frustum culling, and we can build a spatial partition (octree/quadtree) for fine culling on large builds.  
+
+## Physics and Collision Rules  
+- **Engine:** We integrate a 3D physics library (e.g. **Rapier** or Ammo.js).  Rapier is a modern Rust-based physics engine with official WebAssembly support.  It provides rigid-body dynamics, collision detection, and constraints (joints).  Alternatively, Babylon has built‑in support for popular JS physics (Cannon.js, Ammo.js).  For efficiency, static blocks are non-simulated colliders (kinematic); only the player character is a dynamic collider.  
+- **Collision:** The player character uses a capsule collider.  When moving, the physics engine prevents penetration of blocks (walking through walls) and handles gravity/falling.  Walking up stairs and slopes is automatic via collision normals.  If a block is removed under a player, they will “fall” as expected.  No block will move unless a “physics tool” is used (in MVP, blocks are static once placed).  
+- **Determinism:** To keep all clients in sync, the authoritative server computes any physics simulation.  Clients send only their input (move forward/back), and the server confirms the new safe position.  We do not rely on client-side prediction for physics (optional optimization only).  
+
+## Data Model / Schema Examples
+
+Key entities in the game include **Player**, **World**, **Block**, and **ChatMessage**.  Below is an illustrative schema (akin to a Colyseus Room state) in table form:
+
+| **Entity**        | **Fields (with example type)**       | **Description**                                               |
+|-------------------|--------------------------------------|---------------------------------------------------------------|
+| **Player**        | `id: string`<br>`name: string`<br>`position: {x,y,z}`<br>`rotation: {x,y,z}`<br>`worldId: string` | Unique ID (session), display name, current 3D position/rotation, current world.  Also could include avatar model, inventory list, etc. |
+| **World**         | `id: string`<br>`name: string`<br>`ownerId: string`<br>`isPublic: bool`<br>`chunkIds: list<string>` | World identifier, name, creator’s player ID, visibility, list of chunk IDs composing the world.  (Chunks reference block data.) |
+| **Chunk**         | `id: string`<br>`blocks: Block[]`<br>`version: int` | Each chunk holds up to 4096 `Block` records.  `version` can track updates. Chunks are 16×16×16 areas. |
+| **Block**         | `id: string`<br>`type: string`<br>`material: string`<br>`position: {x,y,z}`<br>`orientation: int`<br>`color: string` | Single block record. `type` (e.g. "cube", "stair"), `material` (wood/stone), grid-aligned position, rotation (e.g. 0–3 for 90° steps), and optional tint color. |
+| **ChatMessage**   | `id: string`<br>`fromPlayerId: string`<br>`text: string`<br>`timestamp: Date` | Chat log entry for persistence or moderation. |
+| **BuildAction**   | `playerId: string`<br>`action: string`<br>`details: {...}`<br>`time: Date` | (Optional) Records of actions (e.g. "placed block", parameters) for undo/redo or replay. |
+
+The server’s state would hold, for example, a `MapSchema<Player>` keyed by session ID to track all players.  On each update tick, only changed fields (e.g. a moved player position or a newly placed block in a chunk) are synchronized to clients.  The above schema is illustrative; actual implementation uses Colyseus Schemas or similar declarative syncing structures.
+
+## Asset Pipeline and Formats  
+- **3D Models:** Custom blocks are mostly procedural (created by code).  Any complex decorative items (benches, vehicles) can be authored in 3D tools (Blender, Maya) and exported to glTF/glb format (widely supported by WebGL engines).  Babylon.js and Three.js both support glTF and .OBJ/.FBX imports.  glTF is recommended for runtime due to efficiency and PBR material support.  Models are optimized (vertex count) and compressed (e.g. Draco or glTF Meshopt).  
+- **Textures:** Textures (for materials, decals) use formats like PNG or JPEG.  We pack texture atlases when possible to reduce draw calls.  Compressed texture formats (KTX2/Basis) are ideal for WebGL, but initial support may use standard images.  
+- **Pipeline:** Artists create assets locally, which go into a source control (Git, Perforce) and then a build pipeline exports into web-ready formats.  Static assets (models, textures) are uploaded to a CDN (e.g. S3+CloudFront on AWS).  The game client fetches assets by URL; cached versions (CDN edge) improve load times.  Optionally, on upload we run a Lambda or similar to compress large assets (see AWS example).  
+- **Audio:** Basic sound effects (block place, footsteps) and optional background music.  Use compressed audio formats (OGG/MP3). These are also served via CDN.
+
+## Development Stack and Libraries  
+- **Frontend (WebGL Engine):** We consider *Babylon.js* or *Three.js*.  Both are mature WebGL frameworks.  As one comparison notes, *“Three.js is a lightweight rendering engine; Babylon.js is a complete 3D engine”*.  In practice, **Babylon.js** has built-in support for physics plugins, particle systems, GUI, and an inspector; it may speed development.  **Three.js** offers more flexibility and a larger community.  Either engine performs well with WebGL2 (and upcoming WebGPU) on modern browsers.  Both support key features (PBR, cameras, controls), but Babylon’s built-in tools (physics, GUI editor) are convenient for a game.  For example, Babylon natively integrates physics engines (Cannon.js/Ammo) and has an advanced scene optimizer.  We will prototype in one and remain engine-agnostic early on.  
+- **Physics Engine:** We will use **Rapier** (Rust/WASM) or Babylon’s Ammo plugin for 3D physics.  Rapier is fast and supports web (official NPM/WASM).  Babylon’s examples use Ammo/Cannon; we can start with Babylon’s built-in physics before exploring Rapier for better determinism.  
+- **Networking:** **Node.js** server with **Colyseus** rooms is a strong choice.  Colyseus provides matchmaking, state sync, and scales horizontally.  Alternatives include **Lance.GG** or a custom WebSocket+schema solution.  For message handling, we’ll use WebSockets with a library like Socket.IO or Colyseus’s transport.  HTTP (REST) is only for ancillary APIs (e.g. account login, leaderboard).  
+- **Database/Backend Services:**  
+  - **Redis:** Used for Pub/Sub and fast state storage.  Redis can handle millions of ops/sec, making it ideal for real-time updates.  We can store ephemeral world data or use Redis pub/sub channels to connect distributed servers.  
+  - **Persistent Storage:** Cloud DB (e.g. DynamoDB or MongoDB Atlas) to save world metadata and block data.  Alternatively, use file/object storage (AWS S3) to dump chunk data as JSON or binary. S3 combined with a CDN (CloudFront) serves static assets and can even host compressed game files; AWS recommends using CloudFront with HTTPS and automatic compression for WebGL sites.  
+  - **CDN/Files:** All static files (HTML/JS/CSS, models, textures) will be served via a CDN (e.g. CloudFront) pointing to S3.  This delivers assets over HTTPS, with edge caching and on-the-fly compression.  Caching policies ensure fast load for frequent users.  
+- **Dev Tools:**  
+  - **Build/CI:** GitHub Actions (or similar) for building, testing, and deploying both front-end (bundle JS, optimize assets) and back-end (build Docker images).  
+  - **Version Control:** Git for code; maybe Git LFS for large assets.  
+  - **IDE/Editor:** VSCode, since we use TypeScript for both client and server (Colyseus uses TS).  
+  - **Testing:** Jest/Mocha for unit tests (logic, state management) and Playwright or Selenium for end-to-end tests (UI flows in browser).  
+  - **Monitoring:** Tools like Prometheus/Grafana or Colyseus Cloud dashboard to monitor room/user metrics.  
+
+**Comparison of Core Engine Options:** 
+
+| Engine      | Pros                                               | Cons                                                |
+|-------------|----------------------------------------------------|-----------------------------------------------------|
+| **Babylon.js**  | Full-featured (physics, GUI, animations, PBR); visual editor available; strong MS support; inspector/playground; Large World support (floating origin). | Larger library size; steeper learning curve than Three.js. |
+| **Three.js**    | Very popular; simple, flexible; large community/examples; easy to learn; lightweight. | Less built-in (must add physics, GUI, physics libs yourself); focus is on rendering, not full engine. |
+| **Unity (WebGL)** | Full engine with editor; cross-platform; powerful tooling. | Very large downloads; WebGL builds often slower; harder to incrementally patch (browser caching issues); not browser-first (intended more for apps). |
+| **Godot (Web)**  | Lightweight, MIT license; built-in physics/UI; HTML5 export. | Smaller community; fewer 3D optimizations; Web export less battle-tested than JS frameworks. |
+
+*Citations:* Babylon vs Three comparison; community feedback; Babylon site (floating origin).  
+
+**Hosting/Cost Comparison (example estimate):**  
+
+| Service             | Example Setup                   | Estimated Cost/month       |
+|---------------------|---------------------------------|----------------------------|
+| **AWS EC2**         | t3.medium (2 vCPU, 4GB RAM) + EBS | ~$32 (Linux) + storage & bandwidth. (1-year reserved could halve cost.) |
+| **Google Compute**  | e2-standard-2 (~$25) + storage  | Similar (~$30)             |
+| **Heroku Dynos**    | 2 Standard-1X dynos (2 vCPU)    | ~$50+ (pay per dyno); easily scales. |
+| **DigitalOcean Droplet** | 2 vCPU, 4GB (~$24/+$0.10/GB storage) | ~$25+ storage             |
+| **Colyseus Cloud**  | Managed 1-2 rooms              | ~$0 for small, up to $50 for moderate usage (depends on plan) |
+| **Storage (S3)**    | 50GB with CDN (CloudFront)     | ~$2 (storage) + ~$5 (transfer) |
+| **Database (DynamoDB)** | 25GB + moderate RCU/WCU     | ~$10–20 (on-demand)        |
+
+*Notes:*  Costs are illustrative.  For example, an AWS t3.medium is ~\$0.044/hr (~\$32/mo).  Additional costs include load balancers (~\$18/mo each), outbound data (~\$9 per TB after free tier), and storage.  Using spot instances or reserved instances can lower compute costs substantially.  CDN bandwidth costs vary by region.  
+
+## Security, Moderation, and Anti-Griefing  
+- **Data Security:** All client-server comms use TLS (wss://).  Critical data (e.g. account info) is encrypted.  Client inputs are validated server-side.  We will follow OWASP best practices for WebSockets (validate origin, rate-limit messages).  
+- **Cheat Prevention:** Because the server is authoritative, cheating (speed hacks, no-clip) is minimized.  Still, we implement sanity checks (e.g. no teleporting further than a threshold).  The server can detect unusual patterns (e.g. too many blocks placed too fast) and warn/ban the player.  Similar to Roblox’s approach of “detect abnormal player behaviors”, we can flag exploits.  
+- **World Protection:** By default, only the placer can remove a block they placed (or world owner/admin).  This protects builds from random griefing.  For public worlds, we may allow builds by all but restrict breaking if flagged.  A “rollback” feature can undo unwanted edits (by reloading saved state) if needed.  
+- **Moderation Tools:** Admins get an in-game panel (or command console) to mute/kick users, or delete problematic builds.  Text chat uses a profanity blacklist; we can use a third-party filtering API if needed.  For user accounts, we can restrict name choices (no offensive usernames).  Analytics can log actions: e.g. a moderation dashboard showing recently placed/deleted blocks by user.  
+
+## Testing, CI/CD, Deployment, and Scaling Strategy  
+- **Testing:** Unit tests cover core logic (block placement rules, chat handling).  Integration tests run multi-client scenarios (Colyseus has a testing suite).  End-to-end (E2E) tests simulate a browser client (e.g. using Playwright) to ensure build tools and networking work.  We will also perform load testing (virtual users placing blocks) to measure server performance.  Colyseus provides load-test tools, or we can use k6/Gatling to simulate many WebSocket clients.  
+- **CI/CD Pipeline:** On each git push, automated pipelines (GitHub Actions or GitLab CI) build the front-end (bundle/minify JS, compile assets) and run tests.  Backend (Node) tests run in parallel.  A staging build is auto-deployed (e.g. to a test subdomain or a dev container).  When code passes QA, merging to main triggers deployment to production (scaling up new server instances).  Docker containers are built for game servers and pushed to a registry.  Kubernetes or ECS on AWS can handle blue-green or rolling updates for zero-downtime deploys.  
+- **Deployment:** We recommend a container orchestration (Kubernetes/ECS) setup.  Each server instance runs the Node game server.  An AWS Application Load Balancer or Kubernetes Service exposes ports.  Static frontend is deployed to S3+CloudFront (website bucket).  Database migrations (if any) run as part of deployment.  We also use an automated scheduler to prune old worlds or snapshots for clean-up.  
+- **Scaling:** Servers can scale horizontally.  A rough strategy: start with 2–4 game server instances; if CPU or active room count exceeds threshold, spin up more (auto-scaling group).  Use CPU and network metrics to trigger scaling.  Since each game room is independent, new instances simply register to the load balancer.  For very large scale (thousands of players), consider sharding worlds by region (edge servers) to reduce latency, similar to Roblox’s global datacenters.  
+- **Cost Estimate:** Assuming 4 active servers (t3.medium) and moderate storage, rough monthly infrastructure cost is on the order of \$200–\$500.  This includes compute, database, and modest CDN usage.  With auto-scaling, idle times costs drop.  
+
+## MVP Scope & Phased Roadmap  
+We assume a small development team (roles could include 1–2 engineers, a designer, a QA).  **Budget and team size are unspecified**; we outline scope and timeline for 2026 release.  
+
+1. **Phase 1 (0–3 mo):** Core mechanics and prototype.  Implement basic block world, placement/removal, and single-player controls.  Choose engine (Babylon/Three) and set up a simple grid.  Basic multiplayer networking: a single Colyseus room that syncs player positions and block placements.  UI prototypes for build toolbar.  Initial block assets (cube, slab, stairs).  **Milestone:** Local LAN multiplayer demo with building.  
+
+2. **Phase 2 (4–6 mo):** Extend multiplayer features.  Add server rooms (public/private), simple matchmaking, world persistence.  Implement chat, world list browser, user accounts (basic).  More block types (arch, pillar, window).  Begin performance optimizations: chunk loading (16×16 chunks) and mesh merging.  **Milestone:** Online alpha with world creation/join, save/load worlds.  
+
+3. **Phase 3 (7–9 mo):** Polish and scalability.  Full block/toolset, UI refinement (hotkeys, mobile controls).  Add undo/redo, group copy.  Integrate physics engine fully.  Implement moderation tools (kick, filters).  Set up deployment pipeline (Docker, CI/CD).  Load testing and optimizations (instancing, LOD).  **Milestone:** Closed beta test; documentation and tutorials.  
+
+4. **Phase 4 (10–12 mo):** Release prep.  Fix bugs from beta.  Enable optional Unity WebGL build if needed (PR and marketing).  Marketing website and analytics.  Prepare for launch (target late 2026).  Post-MVP planning for social features (bookmarks, follow, etc.).  **Milestone:** Public launch, version 1.0.  
+
+Each phase involves iteration.  Team roles might include: *Frontend Developer*, *Backend/Network Developer*, *UI/UX Designer*, *QA Engineer*, *Project Manager*.  If team size is larger, tasks parallelize.  Timeline is approximate; unspecified delays or scope changes should be noted (e.g. “dates are estimates”).  
+
+## Future Social Features (Outside MVP)  
+Planned post-MVP: user profiles, following favorite builders, bookmarking worlds, “like” and leaderboard of builds.  These require additional data (e.g. user social graph, world metadata).  We designed the architecture to accommodate this in future phases.  
+
+```mermaid
+flowchart LR
+  Player[Player Joins Room] -->|Request Room| Server
+  Server --> RoomState{Is Room Existing?}
+  RoomState -- Yes --> LoadSavedWorld[Load World State]
+  RoomState -- No --> CreateWorld[Initialize New World]
+  LoadSavedWorld --> |Sync initial state| Player
+  CreateWorld --> |Sync initial state| Player
+  Player -->|Place Block| Server
+  Server --> UpdateState[Update World State (Authoritative)]
+  UpdateState --> Broadcast[Broadcast to all players]
+  Broadcast --> Player
+  Player -->|Move, Rotate| Server
+  Server --> CollisionCheck
+  Server --> UpdatePlayerPos
+  UpdatePlayerPos --> Broadcast
+  Player -->|Send Chat| Server
+  Server --> Filter[Filter Chat]
+  Filter --> Broadcast
+  Broadcast --> Player
+```
+
+**Diagram:** Simplified gameplay flow for one room. Players connect to a server room, which loads or creates world state.  Player actions (move, build, chat) go to server, which updates state authoritatively and broadcasts updates to all clients.  
+
+**Sources:** In designing this system, we draw on official frameworks and examples.  Colyseus docs highlight authoritative sync; voxel engine tutorials explain chunk optimization; Babylon.js/Three.js comparisons inform engine choice; AWS and industry blogs guide deployment and optimization.  The above roadmap and UX flows are original synthesis, assuming best practices and 2026 technology trends.
+

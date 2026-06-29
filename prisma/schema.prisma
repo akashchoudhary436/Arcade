@@ -1,0 +1,35 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model GameScore {
+  id         String   @id @default(cuid())
+  gameId     String // snake | 2048 | memory | tictactoe | reaction | whack
+  playerName String
+  score      Int
+  duration   Int? // ms (for timed games)
+  meta       String? // JSON string with extra info (level, moves, etc.)
+  createdAt  DateTime @default(now())
+
+  @@index([gameId, score])
+  @@index([playerName])
+}
+
+model Achievement {
+  id            String   @id @default(cuid())
+  playerName    String
+  achievementId String // e.g. first_win, snake_master
+  meta          String?
+  unlockedAt    DateTime @default(now())
+
+  @@unique([playerName, achievementId])
+  @@index([playerName])
+}
