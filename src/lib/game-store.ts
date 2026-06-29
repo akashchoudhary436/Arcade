@@ -8,7 +8,7 @@ import { sound } from "./sound"
 export type View = "hub" | "game"
 export type Theme = "neon" | "retro" | "cyber"
 
-const AVATARS = ["👾", "🤖", "🦊", "🐱", "🐉", "🦉", "👾", "🦄", "🐼", "🐯"]
+const AVATARS = ["👾", "🤖", "🦊", "🐱", "🐉", "🦉", "🦅", "🦄", "🐼", "🐯"]
 
 interface ScorePayload {
   gameId: GameId

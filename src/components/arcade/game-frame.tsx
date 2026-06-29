@@ -32,7 +32,7 @@ export function GameFrame({
   const Icon = game.icon
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-4 pb-28">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-4 pb-20 sm:pb-28">
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <Button
           variant="ghost"

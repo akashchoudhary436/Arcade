@@ -150,7 +150,7 @@ export function ReactionTime({}: GameProps) {
   return (
     <div className="flex flex-col items-center gap-4">
       {/* stats */}
-      <div className="flex items-center gap-2 w-full max-w-[480px]">
+      <div className="flex items-center gap-2 w-full max-w-[480px] flex-wrap">
         <Stat label="ROUND" value={`${Math.min(round + (phase === "done" ? 0 : phase === "result" ? 0 : 1), ROUNDS)}/${ROUNDS}`} accent="var(--arcade-cyan)" />
         <Stat label="LAST" value={last ? `${last}ms` : "—"} accent="var(--arcade-violet)" />
         <Stat label="AVG" value={avg ? `${avg}ms` : "—"} accent="var(--arcade-amber)" />
@@ -202,7 +202,7 @@ export function ReactionTime({}: GameProps) {
               <RotateCcw className="h-4 w-4" /> Again
             </Button>
           </div>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
             {times.map((t, i) => {
               const color = t < 250 ? "var(--arcade-emerald)" : t < 400 ? "var(--arcade-amber)" : "var(--arcade-red)"
               return (

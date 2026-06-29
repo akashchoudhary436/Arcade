@@ -187,7 +187,7 @@ export function MemoryMatch({}: GameProps) {
       </div>
 
       {/* Stats */}
-      <div className="flex items-center gap-2 w-full max-w-[460px]">
+      <div className="flex items-center gap-2 w-full max-w-[460px] flex-wrap">
         <Stat icon={Timer} label="TIME" value={`${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`} accent="var(--arcade-cyan)" />
         <Stat icon={MousePointerClick} label="MOVES" value={moves} accent="var(--arcade-amber)" />
         <Stat icon={Check} label="PAIRS" value={`${matches}/${totalPairs}`} accent="var(--arcade-emerald)" />

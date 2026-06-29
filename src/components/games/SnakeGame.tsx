@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useGameStore } from "@/lib/game-store"
 import { sound } from "@/lib/sound"
 import { Button } from "@/components/ui/button"
@@ -336,7 +337,7 @@ export function SnakeGame({}: GameProps) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="flex items-center gap-2 w-full max-w-[440px]">
+      <div className="flex items-center gap-2 w-full max-w-[440px] flex-wrap justify-center">
         <ScorePill label="SCORE" value={score} accent="var(--arcade-cyan)" />
         <ScorePill label="BEST" value={best} accent="var(--arcade-amber)" />
         <ScorePill label="LENGTH" value={length} accent="var(--arcade-emerald)" />
@@ -373,45 +374,57 @@ export function SnakeGame({}: GameProps) {
           style={{ width: "100%", height: "100%", display: "block" }}
         />
 
-        {(status === "idle" || status === "paused" || status === "over") && (
-          <div
-            className="absolute inset-0 grid place-items-center z-10"
-            style={{ background: "rgba(5,6,14,0.78)", backdropFilter: "blur(2px)" }}
-          >
-            <div className="text-center px-6">
-              {status === "over" ? (
-                <>
-                  <div className="text-5xl mb-2">💀</div>
-                  <div className="text-2xl font-black mb-1" style={{ color: "var(--arcade-red)" }}>
-                    Game Over
-                  </div>
-                  <div className="text-sm text-[var(--arcade-text-dim)] mb-5">
-                    You scored {score} · length {length}
-                  </div>
-                </>
-              ) : status === "paused" ? (
-                <>
-                  <div className="text-5xl mb-2">⏸️</div>
-                  <div className="text-2xl font-black mb-4" style={{ color: "var(--arcade-cyan)" }}>
-                    Paused
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-5xl mb-2 animate-float">🐍</div>
-                  <div className="text-2xl font-black mb-1 arcade-title">Neon Snake</div>
-                  <div className="text-sm text-[var(--arcade-text-dim)] mb-5">
-                    Eat the pink orbs. Don't bite your tail.
-                  </div>
-                </>
-              )}
-              <Button onClick={start} className="gap-2 text-black" style={{ background: "var(--arcade-cyan)" }}>
-                <Play className="h-4 w-4 fill-current" />
-                {status === "over" ? "Play Again" : status === "paused" ? "Resume" : "Start Game"}
-              </Button>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {(status === "idle" || status === "paused" || status === "over") && (
+            <motion.div
+              key={status}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 grid place-items-center z-10"
+              style={{ background: "rgba(5,6,14,0.78)", backdropFilter: "blur(2px)" }}
+            >
+              <motion.div
+                initial={{ y: 12, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.05 }}
+                className="text-center px-6"
+              >
+                {status === "over" ? (
+                  <>
+                    <div className="text-5xl mb-2">💀</div>
+                    <div className="text-2xl font-black mb-1" style={{ color: "var(--arcade-red)" }}>
+                      Game Over
+                    </div>
+                    <div className="text-sm text-[var(--arcade-text-dim)] mb-5">
+                      You scored {score} · length {length}
+                    </div>
+                  </>
+                ) : status === "paused" ? (
+                  <>
+                    <div className="text-5xl mb-2">⏸️</div>
+                    <div className="text-2xl font-black mb-4" style={{ color: "var(--arcade-cyan)" }}>
+                      Paused
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-5xl mb-2 animate-float">🐍</div>
+                    <div className="text-2xl font-black mb-1 arcade-title">Neon Snake</div>
+                    <div className="text-sm text-[var(--arcade-text-dim)] mb-5">
+                      Eat the pink orbs. Don't bite your tail.
+                    </div>
+                  </>
+                )}
+                <Button onClick={start} className="gap-2 text-black" style={{ background: "var(--arcade-cyan)" }}>
+                  <Play className="h-4 w-4 fill-current" />
+                  {status === "over" ? "Play Again" : status === "paused" ? "Resume" : "Start Game"}
+                </Button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="text-[11px] text-[var(--arcade-text-dim)] flex items-center gap-1.5">

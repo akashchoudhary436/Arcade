@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useGameStore } from "@/lib/game-store"
 import { sound } from "@/lib/sound"
 import { Button } from "@/components/ui/button"
@@ -378,7 +379,7 @@ export function Game2048({}: GameProps) {
                   left: `${t.c * 25}%`,
                   top: `${t.r * 25}%`,
                   transition: "left 0.12s ease, top 0.12s ease",
-                  padding: 5,
+                  padding: "clamp(2px, 0.4vw, 5px)",
                   boxSizing: "border-box",
                 }}
               >
@@ -387,7 +388,11 @@ export function Game2048({}: GameProps) {
                   style={{
                     background: col.bg,
                     color: col.fg,
-                    fontSize: t.value >= 1024 ? "1.4rem" : t.value >= 128 ? "1.7rem" : "2rem",
+                    fontSize: t.value >= 1024
+                      ? "clamp(0.7rem, 3.5vw, 1.4rem)"
+                      : t.value >= 128
+                        ? "clamp(0.85rem, 4vw, 1.7rem)"
+                        : "clamp(1rem, 4.5vw, 2rem)",
                     boxShadow: col.glow
                       ? `0 0 18px -2px ${col.glow}, inset 0 0 16px -6px ${col.glow}`
                       : "inset 0 0 14px -8px rgba(255,255,255,0.4)",
@@ -402,29 +407,47 @@ export function Game2048({}: GameProps) {
         </div>
 
         {/* overlays */}
-        {over && (
-          <Overlay
-            title="Game Over"
-            subtitle={`You scored ${score}`}
-            accent="var(--arcade-red)"
-            icon="💀"
-            onAction={newGame}
-            actionLabel="Play Again"
-          />
-        )}
-        {won && !keepGoing && !over && (
-          <Overlay
-            title="You hit 2048!"
-            subtitle="Keep merging for an even higher score?"
-            accent="var(--arcade-amber)"
-            icon="🏆"
-            onAction={() => {
-              setKeepGoing(true)
-              sound.play("click")
-            }}
-            actionLabel="Keep Going"
-          />
-        )}
+        <AnimatePresence>
+          {over && (
+            <motion.div
+              key="game-over"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Overlay
+                title="Game Over"
+                subtitle={`You scored ${score}`}
+                accent="var(--arcade-red)"
+                icon="💀"
+                onAction={newGame}
+                actionLabel="Play Again"
+              />
+            </motion.div>
+          )}
+          {won && !keepGoing && !over && (
+            <motion.div
+              key="you-won"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Overlay
+                title="You hit 2048!"
+                subtitle="Keep merging for an even higher score?"
+                accent="var(--arcade-amber)"
+                icon="🏆"
+                onAction={() => {
+                  setKeepGoing(true)
+                  sound.play("click")
+                }}
+                actionLabel="Keep Going"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="text-[11px] text-[var(--arcade-text-dim)] flex items-center gap-1.5">

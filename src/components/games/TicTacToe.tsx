@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { motion } from "framer-motion"
 import { useGameStore } from "@/lib/game-store"
 import { sound } from "@/lib/sound"
 import { Button } from "@/components/ui/button"
@@ -206,7 +207,7 @@ export function TicTacToe({}: GameProps) {
       </div>
 
       {/* board */}
-      <div className="relative">
+      <div className="relative w-full max-w-[340px]">
         <div
           className="grid grid-cols-3 gap-2 p-3 rounded-2xl"
           style={{
@@ -218,12 +219,15 @@ export function TicTacToe({}: GameProps) {
           {board.map((cell, i) => {
             const isWin = winInfo?.line.includes(i)
             return (
-              <button
-                key={i}
-                onClick={() => place(i)}
-                disabled={!!cell || !!winInfo || draw || thinking}
-                className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl grid place-items-center text-5xl font-black transition-all"
-                style={{
+                <motion.button
+                  key={i}
+                  onClick={() => place(i)}
+                  disabled={!!cell || !!winInfo || draw || thinking}
+                  whileHover={!cell && !winInfo && !draw && !thinking ? { scale: 1.04 } : undefined}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  className="relative aspect-square w-full rounded-xl grid place-items-center text-3xl sm:text-5xl font-black transition-all"
+                  style={{
                   background: isWin
                     ? "rgba(52,211,153,0.18)"
                     : "rgba(255,255,255,0.03)",
@@ -235,7 +239,10 @@ export function TicTacToe({}: GameProps) {
                 }}
               >
                 {cell && (
-                  <span
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
                     className={isWin ? "animate-pop" : ""}
                     style={{
                       color: cell === "X" ? "var(--arcade-cyan)" : "var(--arcade-pink)",
@@ -243,9 +250,9 @@ export function TicTacToe({}: GameProps) {
                     }}
                   >
                     {cell}
-                  </span>
+                  </motion.span>
                 )}
-              </button>
+              </motion.button>
             )
           })}
         </div>

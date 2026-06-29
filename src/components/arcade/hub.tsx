@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { motion } from "framer-motion"
 import { GAMES } from "@/lib/games-config"
 import { useGameStore } from "@/lib/game-store"
 import { sound } from "@/lib/sound"
@@ -24,6 +25,18 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react"
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+}
+const item = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0 },
+}
 
 export function Hub() {
   const { navigateToGame, playedGames, unlockedAchievements } = useGameStore()
@@ -113,8 +126,11 @@ export function Hub() {
             const Icon = g.icon
             const played = playedGames.includes(g.id)
             return (
-              <div
+              <motion.div
                 key={g.id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
                 role="button"
                 tabIndex={0}
                 onClick={() => navigateToGame(g.id)}
@@ -125,8 +141,9 @@ export function Hub() {
                   }
                 }}
                 onMouseEnter={() => sound.play("hover")}
-                className="group relative text-left rounded-2xl p-5 neon-panel border-[var(--arcade-border)] overflow-hidden transition-all hover:-translate-y-1 cursor-pointer focus:outline-none focus-visible:neon-ring"
-                style={{ animationDelay: `${i * 0.05}s` }}
+                whileHover={{ y: -4, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="group relative text-left rounded-2xl p-5 neon-panel border-[var(--arcade-border)] overflow-hidden cursor-pointer focus:outline-none focus-visible:neon-ring"
               >
                 {/* glow blob */}
                 <div
@@ -216,7 +233,7 @@ export function Hub() {
                     Play
                   </span>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>

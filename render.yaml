@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: neon-arcade
+    runtime: docker
+    plan: free
+    branch: main
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        value: file:/app/prisma/dev.db

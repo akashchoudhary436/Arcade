@@ -185,7 +185,7 @@ export function WhackAMole({}: GameProps) {
   return (
     <div className="flex flex-col items-center gap-4">
       {/* stats */}
-      <div className="flex items-center gap-2 w-full max-w-[440px]">
+      <div className="flex items-center gap-2 w-full max-w-[440px] flex-wrap">
         <Stat icon={Target} label="SCORE" value={score} accent="var(--arcade-pink)" />
         <Stat icon={Timer} label="TIME" value={`${time}s`} accent={time <= 5 ? "var(--arcade-red)" : "var(--arcade-cyan)"} />
         <Stat icon={Hammer} label="COMBO" value={`x${combo}`} accent="var(--arcade-amber)" />
