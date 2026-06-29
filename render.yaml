@@ -11,4 +11,4 @@ services:
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        value: file:/app/prisma/dev.db
+        value: mongodb+srv://<user>:<password>@<cluster>.mongodb.net/arcade?retryWrites=true&w=majority
