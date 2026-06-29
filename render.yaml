@@ -1,14 +1,17 @@
 services:
   - type: web
     name: neon-arcade
-    runtime: docker
+    runtime: node
     plan: free
     branch: main
-    healthCheckPath: /
+    healthCheckPath: /api/health
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        value: mongodb+srv://<user>:<password>@<cluster>.mongodb.net/arcade?retryWrites=true&w=majority
+        value: mongodb+srv://akashchoudhary436_db_user:0dOPuAYtMjBWlEJa@cluster0.luqx4sw.mongodb.net/arcade?retryWrites=true&w=majority

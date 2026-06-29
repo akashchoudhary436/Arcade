@@ -52,6 +52,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log("[LAYOUT] RootLayout rendering at", new Date().toISOString())
+  console.log("[LAYOUT] NODE_ENV:", process.env.NODE_ENV)
+  console.log("[LAYOUT] DATABASE_URL present:", !!process.env.DATABASE_URL)
   return (
     <html lang="en" suppressHydrationWarning>
       <body

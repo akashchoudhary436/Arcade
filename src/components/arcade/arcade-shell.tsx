@@ -30,6 +30,10 @@ function GameLoader() {
 export function ArcadeShell() {
   const { view, currentGame, theme, exitToHub } = useGameStore()
 
+  if (typeof window !== "undefined") {
+    console.log("[SHELL] ArcadeShell mounted, view:", view, "game:", currentGame)
+  }
+
   return (
     <div
       className={`arcade arcade-grid arcade-scanlines min-h-screen flex flex-col`}

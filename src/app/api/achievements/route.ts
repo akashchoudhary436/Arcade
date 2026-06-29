@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
+  console.log("[ACHIEVEMENTS API] GET hit at", new Date().toISOString())
   const playerName = req.nextUrl.searchParams.get("playerName")
   if (!playerName) {
     return NextResponse.json({ achievements: [] })

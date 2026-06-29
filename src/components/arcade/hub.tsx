@@ -39,6 +39,9 @@ const item = {
 }
 
 export function Hub() {
+  if (typeof window !== "undefined") {
+    console.log("[HUB] Hub mounted, playedGames:", useGameStore.getState().playedGames)
+  }
   const { navigateToGame, playedGames, unlockedAchievements } = useGameStore()
   const [howTo, setHowTo] = useState<GameId | null>(null)
   const [lbOpen, setLbOpen] = useState(false)

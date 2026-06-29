@@ -5,6 +5,7 @@ import type { GameId } from "@/lib/game-types"
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
+  console.log("[SCORES API] GET hit at", new Date().toISOString())
   const gameId = req.nextUrl.searchParams.get("gameId") as GameId | null
   const limit = Math.min(
     50,
